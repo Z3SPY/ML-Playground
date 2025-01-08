@@ -43,17 +43,17 @@ class Network(nn.Module):
         self.fc3 = nn.Linear(256, action_size)
 
 
-    def forward_propagate(self, state):
-        # From pacman images -> eyes -> to fully conncected -> to actions       
-        x = F.relu(self.bn1(self.conv1(state)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.bn4(self.conv4(x)))
-        x = x.view(x.size(0), -1) # Reshapes the tensor, the first dimension remains the same while the other dimensions are flattend
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        return self.fc3(x)
+    def forward(self, state):
+      # From pacman images -> eyes -> to fully conncected -> to actions       
+      x = F.relu(self.bn1(self.conv1(state)))
+      x = F.relu(self.bn2(self.conv2(x)))
+      x = F.relu(self.bn3(self.conv3(x)))
+      x = F.relu(self.bn4(self.conv4(x)))
+      x = x.view(x.size(0), -1)  # Reshapes the tensor, the first dimension remains the same while the other dimensions are flattend
+      x = F.relu(self.fc1(x))
+      x = F.relu(self.fc2(x))
+      return self.fc3(x)
+        
 
 
 # TRAINING THE AI
@@ -86,7 +86,7 @@ def preprocess_frame(frame):
     frame = Image.fromarray(frame) #Converts into numpy array. Also converts into a PIL Image
 
     #What this is doing is its transforming the frame into a 128 x 128 and converting it into a tensor array
-    preprocess = transforms.Compose([transforms.Resize(128,128), transforms.ToTensor()]) # look at the VALUES in state_shape variable for Compose([])
+    preprocess = transforms.Compose([transforms.Resize((128,128)), transforms.ToTensor()]) # look at the VALUES in state_shape variable for Compose([])
     return preprocess(frame).unsqueeze(0)
 
 
@@ -111,7 +111,7 @@ class Agent():
       self.learn(experiences, discount_factor)
 
   def act(self, state, epsilon = 0.):
-    state = preprocess_frame(state).to(self.device)
+    state = preprocess_frame(state).to(self.device) #Remember, we do preprocess frames because we need to convert the images into readable vectors
     self.local_qnetwork.eval()
     with torch.no_grad():
       action_values = self.local_qnetwork(state)
@@ -137,6 +137,44 @@ class Agent():
     self.optimizer.step()
 
 
+# Initialize the DCQN agent
+    
+
+agent = Agent(number_actions) # Define agent here
+
+print(f"Using device: {agent.device}")
+
+
+# Lets train the CNN implementation
+number_episodes = 2000
+maximum_number_timesteps_per_episode = 1000
+epsilon_starting_value = 1.0
+epsilon_ending_value = 0.01
+epsilon_decay_value = 0.995
+epsilon = epsilon_starting_value
+scores_on_100_episodes = deque(maxlen=100)
+
+for episode in range(1, number_episodes + 1):
+  state, _ = env.reset()
+  score = 0
+  for t in range(maximum_number_timesteps_per_episode):
+    action = agent.act(state, epsilon)
+    next_state, reward, done, _, _ = env.step(action)
+    agent.step(state, action, reward, next_state, done)
+    state = next_state
+    score += reward
+    if done:
+      break
+
+  scores_on_100_episodes.append(score)
+  epsilon = max(epsilon_ending_value, epsilon_decay_value * epsilon)
+  print('\rEpisode {}\tAverage S core: {:.2f}'.format(episode, np.mean(scores_on_100_episodes)), end = "")
+  if episode % 100 == 0:
+    print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, np.mean(scores_on_100_episodes)))
+  if np.mean(scores_on_100_episodes) >= 500.0:
+    print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode - 100, np.mean(scores_on_100_episodes)))
+    torch.save(agent.local_qnetwork.state_dict(), 'checkpoint.ph')
+    break
 
 
 
