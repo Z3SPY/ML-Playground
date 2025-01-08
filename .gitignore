@@ -1,0 +1,14 @@
+# Ignore Python bytecode files
+__pycache__/
+
+# Virtual environment directories
+venv/
+env/
+
+# Local environment variable files
+.env
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
